@@ -100,4 +100,33 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
             return response;
         }
     }
+    
+    // Custom web hooks for extensions. 
+    public class HookController : ApiController
+    {
+        private readonly WebScriptHostManager _scriptHostManager;
+
+        public HookController(WebScriptHostManager scriptHostManager)
+        {
+            _scriptHostManager = scriptHostManager;
+        }
+                
+        [Route("hook/{name}")]
+        [HttpGet]
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<HttpResponseMessage> ExtensionHook(string name, CancellationToken token)
+        {
+            var host = this._scriptHostManager.Instance;
+
+            IAsyncConverter<HttpRequestMessage, HttpResponseMessage> hook;
+            if (host.CustomHttpHandlers.TryGetValue(name, out hook))
+            {
+                var response = await hook.ConvertAsync(this.Request, token);
+                return response;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }
+    }
 }

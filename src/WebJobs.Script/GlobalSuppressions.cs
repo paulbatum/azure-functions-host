@@ -138,4 +138,6 @@
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "Io", Scope = "member", Target = "Microsoft.Azure.WebJobs.Script.Diagnostics.ApplicationPerformanceCounters.#ReadIoBytes")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "Io", Scope = "member", Target = "Microsoft.Azure.WebJobs.Script.Diagnostics.ApplicationPerformanceCounters.#WriteIoBytes")]
 [assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1709:IdentifiersShouldBeCasedCorrectly", MessageId = "Io", Scope = "member", Target = "Microsoft.Azure.WebJobs.Script.Diagnostics.ApplicationPerformanceCounters.#OtherIoBytes")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2001:AvoidCallingProblematicMethods", MessageId = "System.Reflection.Assembly.LoadFrom", Scope = "member", Target = "Microsoft.Azure.WebJobs.Script.ScriptHost.#Initialize()")]
+[assembly: System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Reliability", "CA2001:AvoidCallingProblematicMethods", MessageId = "System.Reflection.Assembly.LoadFrom", Scope = "member", Target = "Microsoft.Azure.WebJobs.Script.ScriptHost.#LoadCustomExtensions(Newtonsoft.Json.Linq.JObject)")]
 

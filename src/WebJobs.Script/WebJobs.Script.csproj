@@ -335,6 +335,7 @@
     <Compile Include="AuthorizationLevel.cs" />
     <Compile Include="Binding\ApiHubScriptBindingProvider.cs" />
     <Compile Include="Binding\BindingContext.cs" />
+    <Compile Include="Binding\GeneralScriptBindingProvider.cs" />
     <Compile Include="Binding\CoreExtensionsScriptBindingProvider.cs" />
     <Compile Include="Binding\DocumentDBScriptBindingProvider.cs" />
     <Compile Include="Binding\ExtensionBinding.cs" />

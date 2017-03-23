@@ -29,6 +29,8 @@ using Microsoft.Azure.WebJobs.Script.Extensibility;
 using Microsoft.Azure.WebJobs.Script.IO;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Net.Http;
+using Microsoft.Azure.WebJobs.Host.Config;
 
 namespace Microsoft.Azure.WebJobs.Script
 {
@@ -51,6 +53,9 @@ namespace Microsoft.Azure.WebJobs.Script
         private static readonly Regex FunctionNameValidationRegex = new Regex(@"^[a-z][a-z0-9_\-]{0,127}$(?<!^host$)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
         private ScriptSettingsManager _settingsManager;
         private bool _shutdownScheduled;
+
+        // Map from an extension name to a http handler. 
+        private IDictionary<string, IAsyncConverter<HttpRequestMessage, HttpResponseMessage>> _customHttpHandlers = new Dictionary<string, IAsyncConverter<HttpRequestMessage, HttpResponseMessage>>(StringComparer.OrdinalIgnoreCase);
 
         protected internal ScriptHost(IScriptHostEnvironment environment, ScriptHostConfiguration scriptConfig = null, ScriptSettingsManager settingsManager = null)
             : base(scriptConfig.HostConfig)
@@ -95,6 +100,8 @@ namespace Microsoft.Azure.WebJobs.Script
         public TraceWriter TraceWriter { get; internal set; }
 
         public ScriptHostConfiguration ScriptConfig { get; private set; }
+
+        public IDictionary<string, IAsyncConverter<HttpRequestMessage, HttpResponseMessage>> CustomHttpHandlers { get { return _customHttpHandlers; } }
 
         /// <summary>
         /// Gets the collection of all valid Functions. For functions that are in error
@@ -363,6 +370,9 @@ namespace Microsoft.Azure.WebJobs.Script
                     }
                 }
 
+
+                LoadCustomExtensions(hostConfig);
+
                 // Create the lease manager that will keep handle the primary host blob lease acquisition and renewal 
                 // and subscribe for change notifications.
                 _blobLeaseManager = blobManagerCreation.GetAwaiter().GetResult();
@@ -387,6 +397,74 @@ namespace Microsoft.Azure.WebJobs.Script
                 if (ScriptConfig.FileLoggingMode != FileLoggingMode.Never)
                 {
                     PurgeOldLogDirectories();
+                }
+            }
+        }
+
+        // Scan the extensions directory and Load custom extension.
+        private void LoadCustomExtensions(JObject hostConfig)
+        {
+            var bindingRoot = ConfigurationManager.AppSettings["BYOB_Path"];
+            if (!string.IsNullOrWhiteSpace(bindingRoot))
+            {
+
+                var config = this.ScriptConfig.HostConfig;
+
+                foreach (var dir in Directory.EnumerateDirectories(bindingRoot))
+                {
+                    foreach (var path in Directory.EnumerateFiles(dir, "*.dll"))
+                    {
+                        // How to find the extension assembly? Don't want to load every one to inspect it. 
+                        // $$$ manifest file? scan for any assembly with 
+                        if (!path.ToLowerInvariant().Contains("extension"))
+                        {
+                            continue;
+                        }
+
+                        // See GetNugetPackagesPath() for details 
+                        // Script runtime is already setup with assembly resolution hooks, so use LoadFrom
+                        Assembly assembly = Assembly.LoadFrom(path);
+                        LoadExtensions(assembly, path, config, hostConfig);
+                    }
+                }
+
+                // Get tooling after all extensions have been initialized. 
+                var generalProvider = ScriptConfig.BindingProviders.OfType<GeneralScriptBindingProvider>().First();
+                generalProvider.Tooling = config.GetToolingAsync().GetAwaiter().GetResult();
+            }
+        }
+
+        // return true if any extensions loaded, else false. 
+        private void LoadExtensions(Assembly assembly, string locationHint, JobHostConfiguration config, JObject hostConfigMetadata)
+        {
+            foreach (var type in assembly.ExportedTypes)
+            {
+                if (!typeof(IExtensionConfigProvider).IsAssignableFrom(type))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    IExtensionConfigProvider instance = (IExtensionConfigProvider)Activator.CreateInstance(type);
+
+                    // Apply config to the extension object. 
+                    JsonConvert.PopulateObject(hostConfigMetadata.ToString(), instance);
+
+                    string name = type.Name;
+
+                    var httpHook = instance as IAsyncConverter<HttpRequestMessage, HttpResponseMessage>;
+                    if (httpHook != null)
+                    {
+                        this._customHttpHandlers[name] = httpHook;
+                    }
+
+                    this.TraceWriter.Info($"Loaded custom extension: {name} from '{locationHint}'");
+                    config.AddExtension(instance);
+                }
+                catch(Exception e)
+                {
+                    this.TraceWriter.Error($"Failed to load custom extension {type} from '{locationHint}'", e);
                 }
             }
         }
@@ -560,9 +638,12 @@ namespace Microsoft.Azure.WebJobs.Script
                 typeof(NotificationHubScriptBindingProvider),
                 typeof(SendGridScriptBindingProvider),
                 typeof(TwilioScriptBindingProvider),
-                typeof(BotFrameworkScriptBindingProvider)
-            };
+                typeof(BotFrameworkScriptBindingProvider),
 
+                // $$$ Will subsume all others. 
+                typeof(GeneralScriptBindingProvider)
+            };
+                        
             // Create the binding providers
             var bindingProviders = new Collection<ScriptBindingProvider>();
             foreach (var bindingProviderType in bindingProviderTypes)
