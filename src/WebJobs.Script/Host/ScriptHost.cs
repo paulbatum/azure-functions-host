@@ -402,6 +402,7 @@ namespace Microsoft.Azure.WebJobs.Script
         }
 
         // Scan the extensions directory and Load custom extension.
+        // $$$ - need to finalize this policy. Currently enabled via an AppSettting. 
         private void LoadCustomExtensions(JObject hostConfig)
         {
             var bindingRoot = ConfigurationManager.AppSettings["BYOB_Path"];
@@ -430,7 +431,7 @@ namespace Microsoft.Azure.WebJobs.Script
 
                 // Get tooling after all extensions have been initialized. 
                 var generalProvider = ScriptConfig.BindingProviders.OfType<GeneralScriptBindingProvider>().First();
-                generalProvider.Tooling = config.GetToolingAsync().GetAwaiter().GetResult();
+                generalProvider.Tooling = config.GetTooling();
             }
         }
 
@@ -640,7 +641,8 @@ namespace Microsoft.Azure.WebJobs.Script
                 typeof(TwilioScriptBindingProvider),
                 typeof(BotFrameworkScriptBindingProvider),
 
-                // $$$ Will subsume all others. 
+                // General purpose binder that works directly against SDK. 
+                // This should eventually replace all other ScriptBindingProvider
                 typeof(GeneralScriptBindingProvider)
             };
                         

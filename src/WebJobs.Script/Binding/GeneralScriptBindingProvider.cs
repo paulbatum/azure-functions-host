@@ -35,9 +35,6 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
                 return false;
             }
 
-            // $$$ Lazy!
-            // These don't make sense in C#, but aren't called then. 
-                        
             var attrs = this.Tooling.GetAttributes(attrType, context.Metadata);
                         
             binding = new GeneralScriptBinding(this.Tooling, attrs, context);
@@ -54,30 +51,11 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
         // Context.DataType may frequently be missing. 
         static Type GetRequestedType(ScriptBindingContext context)
         {
-            Type t = null;
+            Type type = ParseDataType(context);
 
-            DataType result;
-            if (Enum.TryParse<DataType>(context.DataType, out result))
+            if (type == null)
             {
-                switch (result)
-                {
-                    case DataType.Binary:
-                        t = typeof(byte[]);
-                        break;
-
-                    case DataType.Stream:
-                        t = typeof(Stream);
-                        break;
-
-                    case DataType.String:
-                        t = typeof(string);
-                        break;                        
-                }
-            }
-
-            if (t == null)
-            {
-                // $$$ commonly missing. Now what? 
+                // DataType field is commonly missing. Default to JObject.  
                 return typeof(JObject);
             }
 
@@ -86,15 +64,37 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
             {
                 cardinality = Cardinality.One; // default 
             }
-            
+
             if (cardinality == Cardinality.Many)
             {
                 // arrays are supported for both trigger input as well
                 // as output bindings
-                t = t.MakeArrayType();
+                type = type.MakeArrayType();
             }
-            return t;
+            return type;
 
+        }
+
+        // Parse the DataType field and return as a System.Type.
+        private static Type ParseDataType(ScriptBindingContext context)
+        {
+            DataType result;
+            if (Enum.TryParse<DataType>(context.DataType, out result))
+            {
+                switch (result)
+                {
+                    case DataType.Binary:
+                        return typeof(byte[]);
+
+                    case DataType.Stream:
+                        return typeof(Stream);
+
+                    case DataType.String:
+                        return typeof(string);
+                }
+            }
+
+            return null; ;
         }
 
         class GeneralScriptBinding : ScriptBinding
@@ -111,6 +111,8 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
                 _attributes = attributes;
             }
 
+            // This should only be called in script scenarios (not C#). 
+            // So explicitly make it lazy. 
             public override Type DefaultType
             {
                 get
