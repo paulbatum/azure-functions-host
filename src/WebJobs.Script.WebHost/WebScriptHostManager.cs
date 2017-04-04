@@ -16,12 +16,14 @@ using System.Web.Http;
 using System.Web.Http.Routing;
 using Microsoft.AspNet.WebHooks;
 using Microsoft.Azure.WebJobs.Host;
+using Microsoft.Azure.WebJobs.Host.Config;
 using Microsoft.Azure.WebJobs.Host.Loggers;
 using Microsoft.Azure.WebJobs.Host.Timers;
 using Microsoft.Azure.WebJobs.Script.Binding;
 using Microsoft.Azure.WebJobs.Script.Config;
 using Microsoft.Azure.WebJobs.Script.Description;
 using Microsoft.Azure.WebJobs.Script.Diagnostics;
+using Microsoft.Azure.WebJobs.Script.WebHost.Controllers;
 using Microsoft.Azure.WebJobs.Script.WebHost.Diagnostics;
 
 namespace Microsoft.Azure.WebJobs.Script.WebHost
@@ -239,7 +241,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
                 };
                 config.HostConfig.StorageConnectionString = null;
                 config.HostConfig.DashboardConnectionString = null;
-
+                
                 host = ScriptHost.Create(new NullScriptHostEnvironment(), config, ScriptSettingsManager.Instance);
                 traceWriter.Info(string.Format("Starting Host (Id={0})", host.ScriptConfig.HostConfig.HostId));
 
@@ -393,6 +395,8 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
             // Add our WebHost specific services
             var hostConfig = config.HostConfig;
             hostConfig.AddService<IMetricsLogger>(_metricsLogger);
+
+            config.HostConfig.AddService<IWebhookProvider>(new HookController.HookProvider());
 
             // Add our exception handler
             hostConfig.AddService<IWebJobsExceptionHandler>(_exceptionHandler);

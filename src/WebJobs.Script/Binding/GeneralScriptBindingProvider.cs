@@ -35,9 +35,9 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
                 return false;
             }
 
-            var attrs = this.Tooling.GetAttributes(attrType, context.Metadata);
+            var attr = this.Tooling.GetAttribute(attrType, context.Metadata);
                         
-            binding = new GeneralScriptBinding(this.Tooling, attrs, context);
+            binding = new GeneralScriptBinding(this.Tooling, attr, context);
             return true;
         }
 
@@ -55,9 +55,10 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
 
             if (type == null)
             {
-                // DataType field is commonly missing. Default to JObject.  
-                return typeof(JObject);
+                return null;
             }
+
+            // $$$ error if Cardinality is set but type isn't? 
 
             Cardinality cardinality;
             if (!Enum.TryParse<Cardinality>(context.Cardinality, out cardinality))
@@ -99,16 +100,16 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
 
         class GeneralScriptBinding : ScriptBinding
         {
-            private readonly Attribute[] _attributes;
+            private readonly Attribute _attribute;
             private readonly ITooling _tooling;
 
             private Type _defaultType;
 
-            public GeneralScriptBinding(ITooling tooling, Attribute[] attributes, ScriptBindingContext context)
+            public GeneralScriptBinding(ITooling tooling, Attribute attribute, ScriptBindingContext context)
                 : base(context)
             {
                 _tooling = tooling;
-                _attributes = attributes;
+                _attribute = attribute;
             }
 
             // This should only be called in script scenarios (not C#). 
@@ -118,10 +119,9 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
                 get
                 {
                     if (_defaultType == null)
-                    {
-                        var attr = _attributes[0];
+                    {                        
                         Type requestedType = GetRequestedType(this.Context);
-                        _defaultType = _tooling.GetDefaultType(attr, this.Context.Access, requestedType);
+                        _defaultType = _tooling.GetDefaultType(_attribute, this.Context.Access, requestedType);
                     }
                     return _defaultType;
                 }
@@ -129,7 +129,7 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
 
             public override Collection<Attribute> GetAttributes()
             {
-                return new Collection<Attribute>(_attributes);
+                return new Collection<Attribute> { _attribute } ;
             }
         }
     }

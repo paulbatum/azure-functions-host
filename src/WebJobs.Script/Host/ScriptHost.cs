@@ -256,7 +256,7 @@ namespace Microsoft.Azure.WebJobs.Script
                 {
                     File.WriteAllText(hostConfigFilePath, "{}");
                 }
-
+                               
                 if (ScriptConfig.HostConfig.IsDevelopment || InDebugMode)
                 {
                     // If we're in debug/development mode, use optimal debug settings
