@@ -63,13 +63,29 @@ namespace Microsoft.Azure.WebJobs.Script.Description
                 // This allows us to correctly handle retargetable assemblies, redirects, etc.
                 if (result == null)
                 {
-                    string assemblyName = ((AppDomain)sender).ApplyPolicy(args.Name);
+                    var appDomain = (AppDomain)sender;
+                    string assemblyName = appDomain.ApplyPolicy(args.Name);
 
                     // If after applying the current policy, we now have a different target assembly name, attempt to load that 
                     // assembly
                     if (string.Compare(assemblyName, args.Name) != 0)
                     {
                         result = Assembly.Load(assemblyName);
+                    }
+
+
+                    if (context == null && result == null)
+                    {
+                        // Fallback. 
+                        var shortName = new AssemblyName(assemblyName).Name;
+                        foreach (var assembly in appDomain.GetAssemblies())
+                        {
+                            if (string.Equals(assembly.GetName().Name, shortName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                result = assembly;
+                                break;
+                            }
+                        }
                     }
                 }
             }
