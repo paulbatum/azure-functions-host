@@ -9,6 +9,7 @@ using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Azure.WebJobs.Script.Description;
 using Microsoft.Azure.WebJobs.Script.Extensibility;
 using Newtonsoft.Json.Linq;
+using System.Collections.Generic;
 
 namespace Microsoft.Azure.WebJobs.Script.Binding
 {
@@ -98,18 +99,45 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
             return null; ;
         }
 
-        class GeneralScriptBinding : ScriptBinding
+        class GeneralScriptBinding : ScriptBinding, IResultProcessingBinding
         {
             private readonly Attribute _attribute;
             private readonly ITooling _tooling;
 
             private Type _defaultType;
 
+            private MethodInfo _applyReturn; // Action<object,object>
+
             public GeneralScriptBinding(ITooling tooling, Attribute attribute, ScriptBindingContext context)
                 : base(context)
             {
                 _tooling = tooling;
                 _attribute = attribute;
+
+                _applyReturn = attribute.GetType().GetMethod("ApplyReturn", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic);              
+            }
+
+            public bool CanProcessResult(object result)
+            {
+                return _applyReturn != null;
+            }
+
+            public void ProcessResult(
+                IDictionary<string, object> functionArguments, 
+                object[] systemArguments, 
+                string triggerInputName, 
+                object result)
+            {
+                if (result == null)
+                {
+                    return;
+                }
+                                
+                object context;
+                if (functionArguments.TryGetValue(triggerInputName, out context))
+                {
+                    _applyReturn.Invoke(null, new object[] { context, result } );
+                }
             }
 
             // This should only be called in script scenarios (not C#). 
