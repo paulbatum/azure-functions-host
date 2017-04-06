@@ -274,6 +274,7 @@ namespace Microsoft.Azure.WebJobs.Script
                     throw new FormatException(string.Format("Unable to parse {0} file.", ScriptConstants.HostMetadataFileName), ex);
                 }
 
+                ScriptConfig.HostConfig.HostConfigMetadata = hostConfig;
                 ApplyConfiguration(hostConfig, ScriptConfig);
 
                 // Set up a host level TraceMonitor that will receive notification
@@ -370,8 +371,11 @@ namespace Microsoft.Azure.WebJobs.Script
                     }
                 }
 
+                // Load builtin extensions 
+                var sendGridExtension = new Extensions.SendGrid.SendGridConfiguration();
+                LoadExtension(sendGridExtension);
 
-                LoadCustomExtensions(hostConfig);
+                LoadCustomExtensions();
 
                 // Create the lease manager that will keep handle the primary host blob lease acquisition and renewal 
                 // and subscribe for change notifications.
@@ -403,14 +407,11 @@ namespace Microsoft.Azure.WebJobs.Script
 
         // Scan the extensions directory and Load custom extension.
         // $$$ - need to finalize this policy. Currently enabled via an AppSettting. 
-        private void LoadCustomExtensions(JObject hostConfig)
+        private void LoadCustomExtensions()
         {
             var bindingRoot = ConfigurationManager.AppSettings["BYOB_Path"];
             if (!string.IsNullOrWhiteSpace(bindingRoot))
             {
-
-                var config = this.ScriptConfig.HostConfig;
-
                 foreach (var dir in Directory.EnumerateDirectories(bindingRoot))
                 {
                     foreach (var path in Directory.EnumerateFiles(dir, "*.dll"))
@@ -425,18 +426,19 @@ namespace Microsoft.Azure.WebJobs.Script
                         // See GetNugetPackagesPath() for details 
                         // Script runtime is already setup with assembly resolution hooks, so use LoadFrom
                         Assembly assembly = Assembly.LoadFrom(path);
-                        LoadExtensions(assembly, path, config, hostConfig);
+                        LoadExtensions(assembly, path);
                     }
                 }
-
-                // Get tooling after all extensions have been initialized. 
-                var generalProvider = ScriptConfig.BindingProviders.OfType<GeneralScriptBindingProvider>().First();
-                generalProvider.Tooling = config.GetTooling();
             }
+
+            // Get tooling after all extensions have been initialized. 
+            JobHostConfiguration config = this.ScriptConfig.HostConfig;
+            var generalProvider = ScriptConfig.BindingProviders.OfType<GeneralScriptBindingProvider>().First();
+            generalProvider.Tooling = config.GetTooling();
         }
 
         // return true if any extensions loaded, else false. 
-        private void LoadExtensions(Assembly assembly, string locationHint, JobHostConfiguration config, JObject hostConfigMetadata)
+        private void LoadExtensions(Assembly assembly, string locationHint)
         {
             foreach (var type in assembly.ExportedTypes)
             {
@@ -449,25 +451,33 @@ namespace Microsoft.Azure.WebJobs.Script
                 {
                     IExtensionConfigProvider instance = (IExtensionConfigProvider)Activator.CreateInstance(type);
 
-                    // Apply config to the extension object. 
-                    JsonConvert.PopulateObject(hostConfigMetadata.ToString(), instance);
-
-                    string name = type.Name;
-
-                    var httpHook = instance as IAsyncConverter<HttpRequestMessage, HttpResponseMessage>;
-                    if (httpHook != null)
-                    {
-                        this._customHttpHandlers[name] = httpHook;
-                    }
-
-                    this.TraceWriter.Info($"Loaded custom extension: {name} from '{locationHint}'");
-                    config.AddExtension(instance);
+                    LoadExtension(instance, locationHint);
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     this.TraceWriter.Error($"Failed to load custom extension {type} from '{locationHint}'", e);
                 }
             }
+        }
+
+        // Load a single extension 
+        private void LoadExtension(
+            IExtensionConfigProvider instance, 
+            string locationHint = null)
+        {
+            JobHostConfiguration config = this.ScriptConfig.HostConfig;
+
+            var type = instance.GetType();
+            string name = type.Name;
+
+            var httpHook = instance as IAsyncConverter<HttpRequestMessage, HttpResponseMessage>;
+            if (httpHook != null)
+            {
+                this._customHttpHandlers[name] = httpHook;
+            }
+
+            this.TraceWriter.Info($"Loaded custom extension: {name} from '{locationHint}'");
+            config.AddExtension(instance);
         }
 
         private void TraceFileChangeRestart(string changeType, string path, bool isShutdown)
@@ -634,10 +644,9 @@ namespace Microsoft.Azure.WebJobs.Script
                 // binding providers defined in known extension assemblies
                 typeof(CoreExtensionsScriptBindingProvider),
                 typeof(ApiHubScriptBindingProvider),
-                typeof(DocumentDBScriptBindingProvider),
+                typeof(DocumentDBScriptBindingProvider),                
                 typeof(MobileAppsScriptBindingProvider),
-                typeof(NotificationHubScriptBindingProvider),
-                typeof(SendGridScriptBindingProvider),
+                typeof(NotificationHubScriptBindingProvider),                
                 typeof(TwilioScriptBindingProvider),
                 typeof(BotFrameworkScriptBindingProvider),
 

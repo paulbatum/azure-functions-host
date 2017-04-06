@@ -1,7 +1,10 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
+using System;
 using System.Diagnostics;
+using Microsoft.Azure.WebJobs.Extensions.SendGrid;
+using Microsoft.Azure.WebJobs.Host.Config;
 using Microsoft.Azure.WebJobs.Script.Binding;
 using Microsoft.Azure.WebJobs.Script.Extensibility;
 using Newtonsoft.Json.Linq;
@@ -11,21 +14,43 @@ namespace Microsoft.Azure.WebJobs.Script.Tests
 {
     public class SendGridScriptBindingProviderTests
     {
-        private readonly SendGridScriptBindingProvider _provider;
+        private readonly ScriptBindingProvider _provider;
 
         public SendGridScriptBindingProviderTests()
         {
             JobHostConfiguration config = new JobHostConfiguration();
+            config.AddExtension(new SendGridConfiguration());
             TestTraceWriter traceWriter = new TestTraceWriter(TraceLevel.Verbose);
             JObject hostMetadata = new JObject();
-            _provider = new SendGridScriptBindingProvider(config, hostMetadata, traceWriter);
+
+            _provider = new GeneralScriptBindingProvider(config, hostMetadata, traceWriter)
+            {
+                Tooling = config.GetTooling()
+            };            
+        }
+
+        private static SendGridConfiguration CreateConfiguration(JObject config)
+        {
+            var ctx = new ExtensionConfigContext
+            {
+                Config = new JobHostConfiguration()
+                {
+                    HostConfigMetadata = config
+                },
+                Trace = new TestTraceWriter(TraceLevel.Verbose)
+            };
+            SendGridConfiguration result = new SendGridConfiguration();
+            result.Initialize(ctx);
+
+            return result;
         }
 
         [Fact]
         public void CreateConfiguration_CreatesExpectedConfiguration()
         {
             JObject config = new JObject();
-            var result = SendGridScriptBindingProvider.CreateConfiguration(config);
+
+            var result = CreateConfiguration(config);
 
             Assert.Null(result.FromAddress);
             Assert.Null(result.ToAddress);
@@ -39,7 +64,7 @@ namespace Microsoft.Azure.WebJobs.Script.Tests
                     }
                 }
             };
-            result = SendGridScriptBindingProvider.CreateConfiguration(config);
+            result = CreateConfiguration(config);
 
             Assert.Equal("test1@test.com", result.ToAddress.Address);
             Assert.Equal("Testing1", result.ToAddress.Name);
@@ -70,7 +95,7 @@ namespace Microsoft.Azure.WebJobs.Script.Tests
         {
             JObject bindingMetadata = new JObject
             {
-                { "type", "queue" },
+                { "type", "unknown" },
                 { "name", "test" },
                 { "direction", "out" }
             };
