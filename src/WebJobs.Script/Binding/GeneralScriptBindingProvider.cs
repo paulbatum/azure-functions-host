@@ -16,7 +16,8 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
     // General binder that works directly off SDK interfaces. 
     class GeneralScriptBindingProvider : ScriptBindingProvider
     {
-        public ITooling Tooling { get; set; }
+        // the constructor is fixed, so we need to pass additional information  $$$
+        public IMetadataTooling Tooling { get; set; }
 
         public GeneralScriptBindingProvider(
             JobHostConfiguration config, 
@@ -102,13 +103,13 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
         class GeneralScriptBinding : ScriptBinding, IResultProcessingBinding
         {
             private readonly Attribute _attribute;
-            private readonly ITooling _tooling;
+            private readonly IMetadataTooling _tooling;
 
             private Type _defaultType;
 
             private MethodInfo _applyReturn; // Action<object,object>
 
-            public GeneralScriptBinding(ITooling tooling, Attribute attribute, ScriptBindingContext context)
+            public GeneralScriptBinding(IMetadataTooling tooling, Attribute attribute, ScriptBindingContext context)
                 : base(context)
             {
                 _tooling = tooling;
