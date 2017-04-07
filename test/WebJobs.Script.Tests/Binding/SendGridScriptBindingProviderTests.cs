@@ -23,10 +23,9 @@ namespace Microsoft.Azure.WebJobs.Script.Tests
             TestTraceWriter traceWriter = new TestTraceWriter(TraceLevel.Verbose);
             JObject hostMetadata = new JObject();
 
-            _provider = new GeneralScriptBindingProvider(config, hostMetadata, traceWriter)
-            {
-                Tooling = config.GetTooling()
-            };            
+            var provider = new GeneralScriptBindingProvider(config, hostMetadata, traceWriter);
+            provider.FinishInit();
+            _provider = provider;
         }
 
         private static SendGridConfiguration CreateConfiguration(JObject config)

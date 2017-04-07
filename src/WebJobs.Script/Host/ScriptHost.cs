@@ -101,7 +101,7 @@ namespace Microsoft.Azure.WebJobs.Script
 
         public ScriptHostConfiguration ScriptConfig { get; private set; }
 
-        public IDictionary<string, IAsyncConverter<HttpRequestMessage, HttpResponseMessage>> CustomHttpHandlers { get { return _customHttpHandlers; } }
+        public IDictionary<string, IAsyncConverter<HttpRequestMessage, HttpResponseMessage>> CustomHttpHandlers => _customHttpHandlers; 
 
         /// <summary>
         /// Gets the collection of all valid Functions. For functions that are in error
@@ -406,19 +406,19 @@ namespace Microsoft.Azure.WebJobs.Script
         }
 
         // Scan the extensions directory and Load custom extension.
-        // $$$ - need to finalize this policy. Currently enabled via an AppSettting. 
         private void LoadCustomExtensions()
         {
-            var bindingRoot = ConfigurationManager.AppSettings["BYOB_Path"];
+            var bindingRoot = ConfigurationManager.AppSettings[EnvironmentSettingNames.AzureWebJobsExtensionsPath];
             if (!string.IsNullOrWhiteSpace(bindingRoot))
             {
                 foreach (var dir in Directory.EnumerateDirectories(bindingRoot))
                 {
                     foreach (var path in Directory.EnumerateFiles(dir, "*.dll"))
                     {
-                        // How to find the extension assembly? Don't want to load every one to inspect it. 
-                        // $$$ manifest file? scan for any assembly with 
-                        if (!path.ToLowerInvariant().Contains("extension"))
+                        // We don't want to load and reflect over every dll. 
+                        // By convention, restrict to based on filenames.
+                        var filename = Path.GetFileName(path);
+                        if (!filename.ToLowerInvariant().Contains("extension"))
                         {
                             continue;
                         }
@@ -431,13 +431,13 @@ namespace Microsoft.Azure.WebJobs.Script
                 }
             }
 
-            // Get tooling after all extensions have been initialized. 
-            JobHostConfiguration config = this.ScriptConfig.HostConfig;
+            // Now all extensions have been loaded, the metadata is finalized. 
+            // There's a single script binding instance that services all extensions. 
+            // give that script binding the metadata for all loaded extensions so it can dispatch to them. 
             var generalProvider = ScriptConfig.BindingProviders.OfType<GeneralScriptBindingProvider>().First();
-            generalProvider.Tooling = config.GetTooling();
+            generalProvider.FinishInit();
         }
 
-        // return true if any extensions loaded, else false. 
         private void LoadExtensions(Assembly assembly, string locationHint)
         {
             foreach (var type in assembly.ExportedTypes)
@@ -450,7 +450,6 @@ namespace Microsoft.Azure.WebJobs.Script
                 try
                 {
                     IExtensionConfigProvider instance = (IExtensionConfigProvider)Activator.CreateInstance(type);
-
                     LoadExtension(instance, locationHint);
                 }
                 catch (Exception e)

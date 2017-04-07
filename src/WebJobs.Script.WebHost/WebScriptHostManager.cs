@@ -396,7 +396,7 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
             var hostConfig = config.HostConfig;
             hostConfig.AddService<IMetricsLogger>(_metricsLogger);
 
-            config.HostConfig.AddService<IWebhookProvider>(new HookController.HookProvider());
+            config.HostConfig.AddService<IWebhookProvider>(new AdminController.HookProvider());
 
             // Add our exception handler
             hostConfig.AddService<IWebJobsExceptionHandler>(_exceptionHandler);

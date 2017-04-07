@@ -1,6 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the MIT License. See License.txt in the project root for license information.
 
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -12,6 +13,8 @@ using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Controllers;
 using Microsoft.Azure.WebJobs.Host;
+using Microsoft.Azure.WebJobs.Host.Config;
+using Microsoft.Azure.WebJobs.Script.Config;
 using Microsoft.Azure.WebJobs.Script.Description;
 using Microsoft.Azure.WebJobs.Script.WebHost.Filters;
 using Microsoft.Azure.WebJobs.Script.WebHost.Models;
@@ -166,6 +169,46 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
             _scriptHostManager.Instance?.NotifyDebug();
 
             return base.ExecuteAsync(controllerContext, cancellationToken);
+        }
+
+        [Route("admin/hook/{name}")]
+        [HttpGet]
+        [HttpPost]
+        [AllowAnonymous]
+        public async Task<HttpResponseMessage> ExtensionHook(string name, CancellationToken token)
+        {
+            var host = this._scriptHostManager.Instance;
+
+            IAsyncConverter<HttpRequestMessage, HttpResponseMessage> hook;
+            if (host.CustomHttpHandlers.TryGetValue(name, out hook))
+            {
+                var response = await hook.ConvertAsync(this.Request, token);
+                return response;
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }
+
+        // Provides the URL fpr accessing this route. 
+        internal class HookProvider : IWebhookProvider
+        {
+            public string GetUrl(Type extensionType)
+            {
+                var settings = ScriptSettingsManager.Instance;
+                // key the URL off extension name since that's stalbe value.
+                string name = extensionType.Name;
+
+                var hostName = settings.GetSetting(EnvironmentSettingNames.AzureWebsiteHostName);
+                if (hostName == null)
+                {
+                    return null;
+                }
+
+                bool isLocalhost = string.Equals("localhost", hostName, StringComparison.OrdinalIgnoreCase);
+                var scheme = isLocalhost ? "http" : "https";
+
+                return $"{scheme}://{hostName}/admin/hook/{name}";
+            }
         }
     }
 }

@@ -13,12 +13,11 @@ using System.Collections.Generic;
 
 namespace Microsoft.Azure.WebJobs.Script.Binding
 {
-    // General binder that works directly off SDK interfaces. 
-    class GeneralScriptBindingProvider : ScriptBindingProvider
-    {
-        // the constructor is fixed, so we need to pass additional information  $$$
-        public IMetadataTooling Tooling { get; set; }
-
+    // This single binder can service all SDK extensions by leveraging the SDK metadata provider. 
+    public class GeneralScriptBindingProvider : ScriptBindingProvider
+    {        
+        private IJobHostMetadataProvider _tooling;
+                
         public GeneralScriptBindingProvider(
             JobHostConfiguration config, 
             JObject hostMetadata, 
@@ -27,40 +26,47 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
         {
         }
 
+        // The constructor is fixed and ScriptBindingProvider are instantated for us by the Script runtime. 
+        // Extensions may get registered after this class is instantiated. 
+        // So we need a final call that lets us get the tooling snapshot of the graph after all extensions are set. 
+        public void FinishInit()
+        {
+            this._tooling  = this.Config.GetTooling();
+        }
+
         public override bool TryCreate(ScriptBindingContext context, out ScriptBinding binding)
         {
             string name = context.Type;
-            var attrType = this.Tooling.GetAttributeTypeFromName(name);
+            var attrType = this._tooling.GetAttributeTypeFromName(name);
             if (attrType == null)
             {
                 binding = null;
                 return false;
             }
 
-            var attr = this.Tooling.GetAttribute(attrType, context.Metadata);
+            var attr = this._tooling.GetAttribute(attrType, context.Metadata);
                         
-            binding = new GeneralScriptBinding(this.Tooling, attr, context);
+            binding = new GeneralScriptBinding(this._tooling, attr, context);
             return true;
         }
 
         public override bool TryResolveAssembly(string assemblyName, out Assembly assembly)
         {
-            assembly = this.Tooling.TryResolveAssembly(assemblyName);
-            return (assembly != null);
+            return this._tooling.TryResolveAssembly(assemblyName, out assembly);
         }
 
 
-        // Context.DataType may frequently be missing. 
+        // Function.json specifies a type via optional DataType and Cardinality properties. 
+        // Read the properties and convert that into a System.Type. 
         static Type GetRequestedType(ScriptBindingContext context)
         {
             Type type = ParseDataType(context);
 
             if (type == null)
             {
+                // No type information specified. 
                 return null;
-            }
-
-            // $$$ error if Cardinality is set but type isn't? 
+            }                       
 
             Cardinality cardinality;
             if (!Enum.TryParse<Cardinality>(context.Cardinality, out cardinality))
@@ -100,16 +106,16 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
             return null; ;
         }
 
-        class GeneralScriptBinding : ScriptBinding, IResultProcessingBinding
+        private class GeneralScriptBinding : ScriptBinding, IResultProcessingBinding
         {
             private readonly Attribute _attribute;
-            private readonly IMetadataTooling _tooling;
+            private readonly IJobHostMetadataProvider _tooling;
 
             private Type _defaultType;
 
             private MethodInfo _applyReturn; // Action<object,object>
 
-            public GeneralScriptBinding(IMetadataTooling tooling, Attribute attribute, ScriptBindingContext context)
+            public GeneralScriptBinding(IJobHostMetadataProvider tooling, Attribute attribute, ScriptBindingContext context)
                 : base(context)
             {
                 _tooling = tooling;
@@ -156,10 +162,7 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
                 }
             }
 
-            public override Collection<Attribute> GetAttributes()
-            {
-                return new Collection<Attribute> { _attribute } ;
-            }
+            public override Collection<Attribute> GetAttributes() => new Collection<Attribute> { _attribute } ;            
         }
     }
 }
