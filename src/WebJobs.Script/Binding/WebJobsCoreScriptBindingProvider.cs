@@ -24,37 +24,12 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
 
         public override void Initialize()
         {
-            // Apply Queues configuration
-            JObject configSection = (JObject)Metadata["queues"];
-            JToken value = null;
-            if (configSection != null)
-            {
-                if (configSection.TryGetValue("maxPollingInterval", out value))
-                {
-                    Config.Queues.MaxPollingInterval = TimeSpan.FromMilliseconds((int)value);
-                }
-                if (configSection.TryGetValue("batchSize", out value))
-                {
-                    Config.Queues.BatchSize = (int)value;
-                }
-                if (configSection.TryGetValue("maxDequeueCount", out value))
-                {
-                    Config.Queues.MaxDequeueCount = (int)value;
-                }
-                if (configSection.TryGetValue("newBatchThreshold", out value))
-                {
-                    Config.Queues.NewBatchThreshold = (int)value;
-                }
-                if (configSection.TryGetValue("visibilityTimeout", out value))
-                {
-                    Config.Queues.VisibilityTimeout = TimeSpan.Parse((string)value, CultureInfo.InvariantCulture);
-                }
-            }
+           // Extensions will already apply configuraiton 
 
             // Apply Blobs configuration
             Config.Blobs.CentralizedPoisonQueue = true;   // TEMP : In the next release we'll remove this and accept the core SDK default
-            configSection = (JObject)Metadata["blobs"];
-            value = null;
+            var configSection = (JObject)Metadata["blobs"];
+            JToken value = null;
             if (configSection != null)
             {
                 if (configSection.TryGetValue("centralizedPoisonQueue", out value))
@@ -70,13 +45,8 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
         {
             binding = null;
 
-            if (string.Compare(context.Type, "queueTrigger", StringComparison.OrdinalIgnoreCase) == 0 ||
-                string.Compare(context.Type, "queue", StringComparison.OrdinalIgnoreCase) == 0)
-            {
-                binding = new QueueScriptBinding(context);
-            }
-            else if (string.Compare(context.Type, "blobTrigger", StringComparison.OrdinalIgnoreCase) == 0 ||
-                     string.Compare(context.Type, "blob", StringComparison.OrdinalIgnoreCase) == 0)
+            if (string.Compare(context.Type, "blobTrigger", StringComparison.OrdinalIgnoreCase) == 0 ||
+                string.Compare(context.Type, "blob", StringComparison.OrdinalIgnoreCase) == 0)
             {
                 binding = new BlobScriptBinding(context);
             }
@@ -88,6 +58,7 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
             {
                 binding = new ManualScriptBinding(context);
             }
+            // Queue, Table handled by general case. 
 
             return binding != null;
         }
@@ -138,52 +109,6 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
                 Collection<Attribute> attributes = new Collection<Attribute>();
 
                 attributes.Add(new ManualTriggerAttribute());
-
-                return attributes;
-            }
-        }
-
-        private class QueueScriptBinding : ScriptBinding
-        {
-            public QueueScriptBinding(ScriptBindingContext context) : base(context)
-            {
-            }
-
-            public override Type DefaultType
-            {
-                get
-                {
-                    if (Context.Access == FileAccess.Read)
-                    {
-                        return string.Compare("binary", Context.DataType, StringComparison.OrdinalIgnoreCase) == 0
-                            ? typeof(byte[]) : typeof(string);
-                    }
-                    else
-                    {
-                        return typeof(IAsyncCollector<byte[]>);
-                    }
-                }
-            }
-
-            public override Collection<Attribute> GetAttributes()
-            {
-                Collection<Attribute> attributes = new Collection<Attribute>();
-
-                string queueName = Context.GetMetadataValue<string>("queueName");
-                if (Context.IsTrigger)
-                {
-                    attributes.Add(new QueueTriggerAttribute(queueName));
-                }
-                else
-                {
-                    attributes.Add(new QueueAttribute(queueName));
-                }
-
-                string account = Context.GetMetadataValue<string>("connection");
-                if (!string.IsNullOrEmpty(account))
-                {
-                    attributes.Add(new StorageAccountAttribute(account));
-                }
 
                 return attributes;
             }

@@ -58,18 +58,13 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
 
         // Function.json specifies a type via optional DataType and Cardinality properties. 
         // Read the properties and convert that into a System.Type. 
-        static Type GetRequestedType(ScriptBindingContext context)
+        public static Type GetRequestedType(ScriptBindingContext context)
         {
             Type type = ParseDataType(context);
 
-            if (type == null)
-            {
-                // No type information specified. 
-                return null;
-            }                       
 
             Cardinality cardinality;
-            if (!Enum.TryParse<Cardinality>(context.Cardinality, out cardinality))
+            if (!Enum.TryParse<Cardinality>(context.Cardinality, true, out cardinality))
             {
                 cardinality = Cardinality.One; // default 
             }
@@ -81,14 +76,14 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
                 type = type.MakeArrayType();
             }
             return type;
-
         }
 
         // Parse the DataType field and return as a System.Type.
+        // Never return null. Use typeof(object) to refer to an unnkown. 
         private static Type ParseDataType(ScriptBindingContext context)
         {
             DataType result;
-            if (Enum.TryParse<DataType>(context.DataType, out result))
+            if (Enum.TryParse<DataType>(context.DataType, true, out result))
             {
                 switch (result)
                 {
@@ -103,7 +98,7 @@ namespace Microsoft.Azure.WebJobs.Script.Binding
                 }
             }
 
-            return null; ;
+            return typeof(object);
         }
 
         private class GeneralScriptBinding : ScriptBinding, IResultProcessingBinding
