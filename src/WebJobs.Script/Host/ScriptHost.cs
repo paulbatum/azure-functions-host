@@ -54,9 +54,6 @@ namespace Microsoft.Azure.WebJobs.Script
         private ScriptSettingsManager _settingsManager;
         private bool _shutdownScheduled;
 
-        // Map from an extension name to a http handler. 
-        private IDictionary<string, IAsyncConverter<HttpRequestMessage, HttpResponseMessage>> _customHttpHandlers = new Dictionary<string, IAsyncConverter<HttpRequestMessage, HttpResponseMessage>>(StringComparer.OrdinalIgnoreCase);
-
         protected internal ScriptHost(IScriptHostEnvironment environment, ScriptHostConfiguration scriptConfig = null, ScriptSettingsManager settingsManager = null)
             : base(scriptConfig.HostConfig)
         {
@@ -100,8 +97,6 @@ namespace Microsoft.Azure.WebJobs.Script
         public TraceWriter TraceWriter { get; internal set; }
 
         public ScriptHostConfiguration ScriptConfig { get; private set; }
-
-        public IDictionary<string, IAsyncConverter<HttpRequestMessage, HttpResponseMessage>> CustomHttpHandlers => _customHttpHandlers; 
 
         /// <summary>
         /// Gets the collection of all valid Functions. For functions that are in error
@@ -468,12 +463,6 @@ namespace Microsoft.Azure.WebJobs.Script
 
             var type = instance.GetType();
             string name = type.Name;
-
-            var httpHook = instance as IAsyncConverter<HttpRequestMessage, HttpResponseMessage>;
-            if (httpHook != null)
-            {
-                this._customHttpHandlers[name] = httpHook;
-            }
 
             this.TraceWriter.Info($"Loaded custom extension: {name} from '{locationHint}'");
             config.AddExtension(instance);

@@ -177,10 +177,10 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
         [AllowAnonymous]
         public async Task<HttpResponseMessage> ExtensionHook(string name, CancellationToken token)
         {
-            var host = this._scriptHostManager.Instance;
+            var provider = this._scriptHostManager.BindingWebhookProvider;
 
             IAsyncConverter<HttpRequestMessage, HttpResponseMessage> hook;
-            if (host.CustomHttpHandlers.TryGetValue(name, out hook))
+            if (provider.CustomHttpHandlers.TryGetValue(name, out hook))
             {
                 var response = await hook.ConvertAsync(this.Request, token);
                 return response;
@@ -189,26 +189,21 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost.Controllers
             return new HttpResponseMessage(HttpStatusCode.NotFound);
         }
 
-        // Provides the URL fpr accessing this route. 
-        internal class HookProvider : IWebhookProvider
+        // Provides the URL for accessing the admin/hook route. 
+        internal static Uri GetExtensionHook(string name)
         {
-            public string GetUrl(Type extensionType)
+            var settings = ScriptSettingsManager.Instance;
+
+            var hostName = settings.GetSetting(EnvironmentSettingNames.AzureWebsiteHostName);
+            if (hostName == null)
             {
-                var settings = ScriptSettingsManager.Instance;
-                // key the URL off extension name since that's stalbe value.
-                string name = extensionType.Name;
-
-                var hostName = settings.GetSetting(EnvironmentSettingNames.AzureWebsiteHostName);
-                if (hostName == null)
-                {
-                    return null;
-                }
-
-                bool isLocalhost = string.Equals("localhost", hostName, StringComparison.OrdinalIgnoreCase);
-                var scheme = isLocalhost ? "http" : "https";
-
-                return $"{scheme}://{hostName}/admin/hook/{name}";
+                return null;
             }
+
+            bool isLocalhost = string.Equals("localhost", hostName, StringComparison.OrdinalIgnoreCase);
+            var scheme = isLocalhost ? "http" : "https";
+
+            return new Uri($"{scheme}://{hostName}/admin/hook/{name}");
         }
     }
 }
