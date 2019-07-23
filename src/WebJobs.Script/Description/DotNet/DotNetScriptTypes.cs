@@ -8,5 +8,6 @@ namespace Microsoft.Azure.WebJobs.Script.Description
         public const string CSharp = "CSharp";
         public const string DotNetAssembly = "DotNetAssembly";
         public const string RawDotNetAssembly = "RawDotNetAssembly";
+        public const string WebAssembly = "WebAssembly";
     }
 }

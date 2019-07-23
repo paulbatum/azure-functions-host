@@ -266,6 +266,8 @@ namespace Microsoft.Azure.WebJobs.Script
                 case "csx":
                 case "cs":
                     return DotNetScriptTypes.CSharp;
+                case "wasm":
+                    return DotNetScriptTypes.WebAssembly;
                 case "dll":
                     return DotNetScriptTypes.DotNetAssembly;
             }

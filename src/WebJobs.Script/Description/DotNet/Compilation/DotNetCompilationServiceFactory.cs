@@ -61,6 +61,8 @@ namespace Microsoft.Azure.WebJobs.Script.Description
                     return new CSharpCompilationService(metadata, OptimizationLevel);
                 case DotNetScriptTypes.DotNetAssembly:
                     return new RawAssemblyCompilationService();
+                case DotNetScriptTypes.WebAssembly:
+                    return new WebAssemblyCompilationService();
                 default:
                     throw new NotSupportedException(string.Format(CultureInfo.InvariantCulture,
                         "The language {0} is not supported by the {1}", language, typeof(DotNetCompilationServiceFactory).Name));
