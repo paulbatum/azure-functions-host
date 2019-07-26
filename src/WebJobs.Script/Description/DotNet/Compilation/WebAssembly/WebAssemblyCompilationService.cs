@@ -18,14 +18,12 @@ namespace Microsoft.Azure.WebJobs.Script.Description
 
         public IEnumerable<string> SupportedFileTypes => _supportedFileTypes;
 
+        async Task<object> ICompilationService.GetFunctionCompilationAsync(FunctionMetadata functionMetadata)
+            => await GetFunctionCompilationAsync(functionMetadata);
+
         public Task<IDotNetCompilation> GetFunctionCompilationAsync(FunctionMetadata functionMetadata)
         {
             return Task.FromResult<IDotNetCompilation>(new WebAssemblyCompilation(functionMetadata.ScriptFile, functionMetadata.EntryPoint));
-        }
-
-        Task<object> ICompilationService.GetFunctionCompilationAsync(FunctionMetadata functionMetadata)
-        {
-            throw new NotImplementedException();
         }
     }
 }

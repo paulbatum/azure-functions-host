@@ -3,6 +3,7 @@
   <PropertyGroup>
     <PackageId>Microsoft.Azure.WebJobs.Script</PackageId>
     <PackageIconUrl>https://raw.githubusercontent.com/Azure/azure-webjobs-sdk/dev/webjobs.png</PackageIconUrl>
+    <TargetFramework>netcoreapp2.2</TargetFramework>
     <AssemblyName>Microsoft.Azure.WebJobs.Script</AssemblyName>
     <RootNamespace>Microsoft.Azure.WebJobs.Script</RootNamespace>
   </PropertyGroup>
@@ -62,6 +63,7 @@
     <PackageReference Include="System.Reactive.Linq" Version="3.1.1" />
     <PackageReference Include="System.Reactive.PlatformServices" Version="3.1.1" />
     <PackageReference Include="System.Reflection.Emit" Version="4.3.0" />
+    <PackageReference Include="wrapper" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>

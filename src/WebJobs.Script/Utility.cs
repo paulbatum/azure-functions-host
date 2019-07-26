@@ -32,7 +32,7 @@ namespace Microsoft.Azure.WebJobs.Script
 
         private static readonly string UTF8ByteOrderMark = Encoding.UTF8.GetString(Encoding.UTF8.GetPreamble());
         private static readonly FilteredExpandoObjectConverter _filteredExpandoObjectConverter = new FilteredExpandoObjectConverter();
-        private static List<string> dotNetLanguages = new List<string>() { DotNetScriptTypes.CSharp, DotNetScriptTypes.DotNetAssembly };
+        private static List<string> dotNetLanguages = new List<string>() { DotNetScriptTypes.CSharp, DotNetScriptTypes.DotNetAssembly, DotNetScriptTypes.WebAssembly };
 
         internal static async Task InvokeWithRetriesAsync(Action action, int maxRetries, TimeSpan retryInterval)
         {

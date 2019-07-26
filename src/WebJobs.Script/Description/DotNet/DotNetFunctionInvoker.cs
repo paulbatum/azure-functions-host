@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Azure.WebJobs.Script.Description
 {
-    public sealed class DotNetFunctionInvoker : FunctionInvokerBase
+    public class DotNetFunctionInvoker : FunctionInvokerBase
     {
         private readonly string _triggerInputName;
         private readonly FunctionMetadata _functionMetadata;
@@ -176,7 +176,7 @@ namespace Microsoft.Azure.WebJobs.Script.Description
             }
         }
 
-        internal async Task<MethodInfo> GetFunctionTargetAsync(bool isInvocation = false)
+        internal virtual async Task<MethodInfo> GetFunctionTargetAsync(bool isInvocation = false)
         {
             try
             {
@@ -277,6 +277,11 @@ namespace Microsoft.Azure.WebJobs.Script.Description
             return result;
         }
 
+        protected virtual MethodInfo ResolveEntryPoint(FunctionSignature functionSignature, Assembly targetAssembly)
+        {
+            return _functionSignature.GetMethod(targetAssembly);
+        }
+
         private async Task<MethodInfo> CreateFunctionTarget(CancellationToken cancellationToken)
         {
             try
@@ -301,7 +306,7 @@ namespace Microsoft.Azure.WebJobs.Script.Description
                     // Set our function entry point signature
                     _functionSignature = functionSignature;
 
-                    return _functionSignature.GetMethod(assembly);
+                    return ResolveEntryPoint(functionSignature, assembly);
                 }
             }
             catch (CompilationErrorException exc)

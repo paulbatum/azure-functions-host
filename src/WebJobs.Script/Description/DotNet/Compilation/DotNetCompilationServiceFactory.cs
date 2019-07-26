@@ -12,7 +12,7 @@ namespace Microsoft.Azure.WebJobs.Script.Description
 {
     public sealed class DotNetCompilationServiceFactory : ICompilationServiceFactory<ICompilationService<IDotNetCompilation>, IFunctionMetadataResolver>
     {
-        private static readonly ImmutableArray<string> SupportedLanguages = new[] { DotNetScriptTypes.CSharp, DotNetScriptTypes.DotNetAssembly }.ToImmutableArray();
+        private static readonly ImmutableArray<string> SupportedLanguages = new[] { DotNetScriptTypes.CSharp, DotNetScriptTypes.DotNetAssembly, DotNetScriptTypes.WebAssembly }.ToImmutableArray();
         private static OptimizationLevel? _optimizationLevel;
         private readonly ILoggerFactory _loggerFactory;
 

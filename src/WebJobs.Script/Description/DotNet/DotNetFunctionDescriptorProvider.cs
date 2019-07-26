@@ -69,6 +69,19 @@ namespace Microsoft.Azure.WebJobs.Script.Description
 
         protected override IFunctionInvoker CreateFunctionInvoker(string scriptFilePath, BindingMetadata triggerMetadata, FunctionMetadata functionMetadata, Collection<FunctionBinding> inputBindings, Collection<FunctionBinding> outputBindings)
         {
+            if (functionMetadata.Language == DotNetScriptTypes.WebAssembly)
+            {
+                return new WebAssemblyInvoker(Host,
+                    functionMetadata,
+                    inputBindings,
+                    outputBindings,
+                    new FunctionEntryPointResolver(functionMetadata.EntryPoint),
+                    _compilationServiceFactory,
+                    _loggerFactory,
+                    _metricsLogger,
+                    BindingProviders);
+            }
+
             return new DotNetFunctionInvoker(Host,
                 functionMetadata,
                 inputBindings,
