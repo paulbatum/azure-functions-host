@@ -20,11 +20,13 @@ namespace Microsoft.Azure.WebJobs.Script.Description
     {
         private readonly string _assemblyFilePath;
         private readonly string _entryPointName;
+        private readonly DataType? _dataType;
 
-        public WebAssemblyCompilation(string assemblyFilePath, string entryPointName)
+        public WebAssemblyCompilation(FunctionMetadata functionMetadata)
         {
-            _assemblyFilePath = assemblyFilePath;
-            _entryPointName = entryPointName;
+            _assemblyFilePath = functionMetadata.ScriptFile;
+            _entryPointName = functionMetadata.EntryPoint;
+            _dataType = functionMetadata.Bindings.Single(x => x.IsTrigger).DataType;
         }
 
         public ImmutableArray<Diagnostic> GetDiagnostics() => ImmutableArray<Diagnostic>.Empty;
@@ -50,7 +52,15 @@ namespace Microsoft.Azure.WebJobs.Script.Description
             var initializer = functionType?.GetMethod("__wasm_call_ctors") ?? throw new Exception("Didn't find initializer");
             initializer.Invoke(null, null);
 
-            var proxyMethod = typeof(WebAssemblyProxy).GetMethod(nameof(WebAssemblyProxy.InvokeProxy), BindingFlags.Static | BindingFlags.Public);
+            MethodInfo proxyMethod = null;
+            if (_dataType == DataType.Binary)
+            {
+                proxyMethod = typeof(WebAssemblyProxy).GetMethod(nameof(WebAssemblyProxy.InvokeProxyBytes), BindingFlags.Static | BindingFlags.Public);
+            }
+            else
+            {
+                proxyMethod = typeof(WebAssemblyProxy).GetMethod(nameof(WebAssemblyProxy.InvokeProxyString), BindingFlags.Static | BindingFlags.Public);
+            }
             IEnumerable<FunctionParameter> functionParameters = proxyMethod.GetParameters().Select(p => new FunctionParameter(p.Name, p.ParameterType.FullName, p.IsOptional, GetParameterRefKind(p)));
             return new FunctionSignature(proxyMethod.ReflectedType.FullName, proxyMethod.Name, ImmutableArray.CreateRange(functionParameters.ToArray()), proxyMethod.ReturnType.Name, hasLocalTypeReference: false);
         }
@@ -70,7 +80,7 @@ namespace Microsoft.Azure.WebJobs.Script.Description
     {
         public static MethodInfo Target { get; set; }
 
-        public static void InvokeProxy(string stringinput, out string stringoutput)
+        public static void InvokeProxyString(string stringinput, out string stringoutput)
         {
             var chars = stringinput.ToCharArray();
             var nlen = Encoding.UTF8.GetByteCount(chars) + 1;
@@ -87,6 +97,18 @@ namespace Microsoft.Azure.WebJobs.Script.Description
             var reversedBytes = new byte[nlen];
             Marshal.Copy(wasi_unstable.__mem + outputOffset, reversedBytes, 0, reversedBytes.Length);
             stringoutput = Encoding.UTF8.GetString(reversedBytes);
+        }
+
+        public static void InvokeProxyBytes(byte[] byteinput, out byte[] byteoutput)
+        {
+            var inputFilePath = Path.GetTempFileName();
+            var outputFilePath = Path.GetTempFileName();
+            File.WriteAllBytes(inputFilePath, byteinput);
+
+            wasi_unstable.set_args(new string[] { "TODO", inputFilePath, outputFilePath });
+            Target.Invoke(null, null);
+
+            byteoutput = File.ReadAllBytes(outputFilePath);
         }
     }
 }

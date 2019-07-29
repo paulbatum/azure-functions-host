@@ -23,7 +23,7 @@ namespace Microsoft.Azure.WebJobs.Script.Description
 
         public Task<IDotNetCompilation> GetFunctionCompilationAsync(FunctionMetadata functionMetadata)
         {
-            return Task.FromResult<IDotNetCompilation>(new WebAssemblyCompilation(functionMetadata.ScriptFile, functionMetadata.EntryPoint));
+            return Task.FromResult<IDotNetCompilation>(new WebAssemblyCompilation(functionMetadata));
         }
     }
 }
