@@ -74,7 +74,11 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
                     loggingBuilder.ClearProviders();
 
                     loggingBuilder.AddDefaultWebJobsFilters();
-                    loggingBuilder.AddWebJobsSystem<WebHostSystemLoggerProvider>();
+
+                    if (!bool.Parse(Environment.GetEnvironmentVariable("DISABLE_SYSTEM_LOGGING") ?? "false"))
+                    {
+                        loggingBuilder.AddWebJobsSystem<WebHostSystemLoggerProvider>();
+                    }
                 })
                 .UseStartup<Startup>();
         }

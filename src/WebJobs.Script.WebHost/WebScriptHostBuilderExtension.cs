@@ -65,8 +65,11 @@ namespace Microsoft.Azure.WebJobs.Script.WebHost
                 {
                     loggingBuilder.Services.AddSingleton<ILoggerFactory, ScriptLoggerFactory>();
 
-                    loggingBuilder.AddWebJobsSystem<SystemLoggerProvider>();
-                    loggingBuilder.Services.AddSingleton<ILoggerProvider, AzureMonitorDiagnosticLoggerProvider>();
+                    if (!bool.Parse(Environment.GetEnvironmentVariable("DISABLE_SYSTEM_LOGGING") ?? "false"))
+                    {
+                        loggingBuilder.AddWebJobsSystem<SystemLoggerProvider>();
+                        loggingBuilder.Services.AddSingleton<ILoggerProvider, AzureMonitorDiagnosticLoggerProvider>();
+                    }
 
                     ConfigureRegisteredBuilders(loggingBuilder, rootServiceProvider);
                 })
